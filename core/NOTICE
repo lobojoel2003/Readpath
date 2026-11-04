@@ -1,0 +1,16 @@
+Readpath core (readpath-core)
+Copyright 2026 Readpath contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+The rest of the Readpath repository (web app, server, crawler and Docker
+packaging) is licensed separately under the GNU Affero General Public License
+v3.0; see the LICENSE file at the repository root.
+
+This library uses, but does not include, the following open source software:
+  - pikepdf / qpdf (MPL-2.0 / Apache-2.0)
+  - pdfminer.six and pdfplumber (MIT)
+  - pypdfium2 and PDFium (Apache-2.0 / BSD-3-Clause)
+  - Pillow (MIT-CMU)
+Optional external programs, run as separate processes when installed:
+  - veraPDF (GPL-3.0-or-later / MPL-2.0)
+  - OCRmyPDF (MPL-2.0) and Tesseract (Apache-2.0)

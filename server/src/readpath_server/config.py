@@ -23,6 +23,8 @@ def _int(name: str, default: int) -> int:
 
 
 def _default_web_dir() -> Path:
+    if (Path.cwd() / "web" / "dist").is_dir():  # running from a source checkout
+        return Path.cwd() / "web" / "dist"
     here = Path(__file__).resolve()
     for parent in here.parents:
         candidate = parent / "web" / "dist"

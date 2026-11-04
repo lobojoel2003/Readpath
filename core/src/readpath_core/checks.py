@@ -14,6 +14,7 @@ from pathlib import Path
 import pikepdf
 from pikepdf import Name
 
+from . import embed_fonts
 from . import metadata as md
 from .content import PageContent, analyze_page, page_box
 from .fonts import FontCache
@@ -445,12 +446,14 @@ def run_checks(pdf: pikepdf.Pdf, *, filename: str | None = None, ocr_available: 
             "fonts-unicode", "Text uses real characters", "pass" if has_text else "not_applicable", "serious",
             ["1.3.1"], ["7.21.7"], "All text maps to real characters.", "", None))
     if not_embedded:
+        standard = embed_fonts.available() and all(embed_fonts._standard_name(f) for f in not_embedded)
         checks.append(Check(
             "fonts-embedded", "Fonts are embedded", "warning", "minor", [], ["7.21.4.1"],
             f"{_plural(len(not_embedded), 'font')} {'is' if len(not_embedded) == 1 else 'are'} not embedded.",
-            "PDF/UA requires embedded fonts so text displays the same everywhere. Re-export with "
-            "“embed fonts” turned on.", "manual", None, len(not_embedded), None,
-            sorted(not_embedded)[:10]))
+            "PDF/UA requires embedded fonts so text displays the same everywhere. "
+            + ("Readpath can embed exact-width substitutes for these standard fonts." if standard else
+               "Re-export with “embed fonts” turned on."),
+            "auto" if standard else "manual", None, len(not_embedded), None, sorted(not_embedded)[:10]))
     else:
         checks.append(Check(
             "fonts-embedded", "Fonts are embedded", "pass" if has_text else "not_applicable", "minor", [],

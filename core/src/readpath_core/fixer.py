@@ -19,6 +19,7 @@ from pikepdf import Array, Dictionary, Name
 from . import metadata as md
 from .checks import DocumentFacts
 from .content import page_box
+from .embed_fonts import embed_standard_fonts
 from .lang import detect_language, is_valid_lang
 from .ocr import ocr_available, run_ocr
 from .review import Review
@@ -50,7 +51,7 @@ def _scanned_pages(facts: DocumentFacts) -> int:
 
 
 def autofix_pdf(pdf: pikepdf.Pdf, *, filename: str | None = None, default_lang: str = "en-US",
-                retag: bool = False) -> FixResult:
+                retag: bool = False, embed_fonts: bool = True) -> FixResult:
     """Apply safe fixes to an open PDF in place."""
     result = FixResult()
     facts = DocumentFacts(pdf)
@@ -121,6 +122,12 @@ def autofix_pdf(pdf: pikepdf.Pdf, *, filename: str | None = None, default_lang: 
         if n:
             result.applied.append(f"Tagged {n} link{'s' if n != 1 else ''} or form field{'s' if n != 1 else ''} "
                                   "that screen readers were missing.")
+
+    # Fonts: embed metric-compatible substitutes for the standard fonts
+    embedded = embed_standard_fonts(pdf) if embed_fonts else 0
+    if embedded:
+        result.applied.append(f"Embedded {embedded} font{'s' if embedded != 1 else ''} (exact-width "
+                              "substitutes for the standard PDF fonts).")
 
     # Link descriptions
     described = 0
@@ -253,7 +260,8 @@ def _bookmarks_from_headings(pdf: pikepdf.Pdf) -> int:
 
 
 def autofix_file(src: str | Path, dst: str | Path, *, filename: str | None = None,
-                 default_lang: str = "en-US", ocr: bool | None = None, retag: bool = False) -> FixResult:
+                 default_lang: str = "en-US", ocr: bool | None = None, retag: bool = False,
+                 embed_fonts: bool = True) -> FixResult:
     """Fix a file and write the result to `dst` (which may equal `src`)."""
     src, dst = Path(src), Path(dst)
     filename = filename or src.name
@@ -277,7 +285,8 @@ def autofix_file(src: str | Path, dst: str | Path, *, filename: str | None = Non
             except Exception as exc:  # noqa: BLE001
                 notes.append(f"Text recognition (OCR) failed: {exc}")
         with pikepdf.open(work) as pdf:
-            result = autofix_pdf(pdf, filename=filename, default_lang=default_lang, retag=retag)
+            result = autofix_pdf(pdf, filename=filename, default_lang=default_lang, retag=retag,
+                                 embed_fonts=embed_fonts)
             result.applied = notes + result.applied
             if blocked:
                 result.applied.append("Removed a security setting that blocked screen readers.")

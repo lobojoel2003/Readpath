@@ -32,12 +32,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     READPATH_HOST=0.0.0.0 \
     READPATH_PORT=8000
 
-# OCR for scanned PDFs (English and Spanish packs; add more tesseract-ocr-* as needed)
-RUN if [ "$WITH_OCR" = "true" ]; then \
-      apt-get update && apt-get install -y --no-install-recommends \
-        ocrmypdf tesseract-ocr-eng tesseract-ocr-spa ghostscript && \
-      rm -rf /var/lib/apt/lists/*; \
-    fi
+# Liberation fonts: exact-width substitutes embedded for Helvetica/Times/Courier.
+# OCR for scanned PDFs (English and Spanish packs; add more tesseract-ocr-* as needed).
+RUN apt-get update && apt-get install -y --no-install-recommends fonts-liberation2 && \
+    if [ "$WITH_OCR" = "true" ]; then \
+      apt-get install -y --no-install-recommends ocrmypdf tesseract-ocr-eng tesseract-ocr-spa ghostscript; \
+    fi && \
+    rm -rf /var/lib/apt/lists/*
 
 # Java runtime + veraPDF
 COPY --from=eclipse-temurin:21-jre /opt/java/openjdk /opt/java/openjdk

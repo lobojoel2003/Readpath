@@ -11,6 +11,9 @@ This library uses, but does not include, the following open source software:
   - pdfminer.six and pdfplumber (MIT)
   - pypdfium2 and PDFium (Apache-2.0 / BSD-3-Clause)
   - Pillow (MIT-CMU)
+  - fontTools (MIT)
+Fonts embedded into fixed PDFs when installed on the system:
+  - Liberation fonts (SIL Open Font License 1.1)
 Optional external programs, run as separate processes when installed:
   - veraPDF (GPL-3.0-or-later / MPL-2.0)
   - OCRmyPDF (MPL-2.0) and Tesseract (Apache-2.0)

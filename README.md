@@ -20,9 +20,8 @@ remediation vendors.
 2. **Score** each PDF from 0 to 100 against 20 checks mapped to WCAG 2.1 and
    PDF/UA-1 (ISO 14289-1), in plain language: *"This file has no tags, so screen
    readers read it as one long, unstructured stream."*
-3. **Fix automatically** what is safe to fix. The page looks exactly the same
-   afterwards (Readpath's tests render every page before and after and compare
-   the pixels):
+3. **Fix automatically** what is safe to fix. Nothing moves on the page
+   (Readpath's tests render every page before and after and compare the pixels):
    - **adds tags to untagged PDFs**: headings (with levels), paragraphs,
      bulleted and numbered lists, tables (ruled and unruled) with header cells,
      images, links, and page headers, footers and page numbers marked as decoration.
@@ -30,6 +29,9 @@ remediation vendors.
    - sets the document language (detected from the text) and the title
      (from the first heading), and shows the title instead of the file name
    - describes and tags links, tags form fields and comments, fixes the tab order
+   - embeds fonts: unembedded Helvetica/Arial, Times and Courier are replaced by
+     the Liberation fonts, which have exactly the same character widths, so
+     text stays where it was (only if every character in use matches)
    - adds bookmarks to long documents, using the headings
    - removes security settings that lock screen readers out
    - runs text recognition (OCR) on scanned pages, when OCRmyPDF is installed (it is in the Docker image)
@@ -128,8 +130,9 @@ last step lists these.
 
 Current limitations:
 
-- **Fonts that aren't embedded** can't be fixed without the source file
-  (re-export with "embed fonts" on). Readpath flags them as a minor PDF/UA issue.
+- **Fonts that aren't embedded**, other than the standard Helvetica/Arial,
+  Times and Courier, need the source file (re-export with "embed fonts" on).
+  Readpath flags them as a minor PDF/UA issue.
 - **Charts drawn as vector graphics** (not pictures) are marked as decoration.
   Describe them in the surrounding text, or re-export them as images.
 - **Complex layouts** (forms, nested tables, magazine spreads) may need more
@@ -159,10 +162,11 @@ content either in tagged marked content (`/P <</MCID 3>> BDC … EMC`) or in
 `/Artifact`. It always wraps at the deepest safe level, so tags nest correctly
 with text objects, graphics state and existing marked content. Files tagged by
 Readpath pass veraPDF's PDF/UA-1 machine checks, except for issues that need a
-person (image descriptions) or the source file (embedded fonts).
+person (image descriptions) or, for unusual fonts, the source file.
 
 veraPDF runs as a separate program; the Docker image fetches it from Maven
-Central. OCRmyPDF and Tesseract are installed from Debian packages.
+Central. OCRmyPDF, Tesseract and the Liberation fonts are installed from Debian
+packages.
 
 ## Development
 

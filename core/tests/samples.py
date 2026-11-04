@@ -173,3 +173,18 @@ def browser_style(path: str | Path) -> Path:
     c.showPage()
     c.save()
     return path
+
+
+def form_page(src: str | Path, path: str | Path) -> Path:
+    """Wrap every page's content in one form XObject (as some print drivers do)."""
+    import pikepdf
+
+    path = Path(path)
+    with pikepdf.open(src) as pdf:
+        for page in pdf.pages:
+            xobj = page.as_form_xobject()
+            xobj.write(xobj.read_bytes())  # materialize before replacing the page content
+            name = page.add_resource(xobj, pikepdf.Name.XObject, prefix="Fm")
+            page.obj.Contents = pdf.make_stream(b"q " + bytes(name) + b" Do Q")
+        pdf.save(path)
+    return path

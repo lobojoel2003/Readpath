@@ -278,6 +278,111 @@ def _strip_mcids(ops: list) -> list:
 
 
 # ---------------------------------------------------------------------------
+# Inline page-sized form XObjects
+# ---------------------------------------------------------------------------
+
+_RESOURCE_KINDS = ("/Font", "/XObject", "/ExtGState", "/ColorSpace", "/Pattern", "/Shading", "/Properties")
+
+
+def _balanced(ops: list) -> bool:
+    depth = 0
+    for instr in ops:
+        op = str(instr.operator)
+        if op == "q":
+            depth += 1
+        elif op == "Q":
+            depth -= 1
+            if depth < 0:
+                return False
+    return depth == 0
+
+
+def _merge_resources(page: pikepdf.Page, form: pikepdf.Object) -> bool:
+    """Copy the form's resources into the page if no names clash."""
+    form_res = form.get("/Resources")
+    if form_res is None:
+        return True
+    page_res = page.obj.get("/Resources")
+    if page_res is None:
+        page.obj.Resources = Dictionary()
+        page_res = page.obj.Resources
+    for kind in _RESOURCE_KINDS:
+        sub = form_res.get(kind)
+        if sub is None:
+            continue
+        target = page_res.get(kind)
+        for name, value in sub.items():
+            if target is not None and name in target:
+                existing = target[name]
+                same = (existing.is_indirect and value.is_indirect and existing.objgen == value.objgen)
+                if not same:
+                    return False
+    for kind in _RESOURCE_KINDS:
+        sub = form_res.get(kind)
+        if sub is None:
+            continue
+        if kind not in page_res:
+            page_res[kind] = Dictionary()
+        for name, value in sub.items():
+            if name not in page_res[kind]:
+                page_res[kind][name] = value
+    return True
+
+
+def inline_page_forms(pdf: pikepdf.Pdf) -> int:
+    """Draw page-sized form XObjects that contain text directly in the page.
+
+    Some print drivers and stamping tools wrap a whole page in one form
+    XObject, which would otherwise become a single giant paragraph. Only done
+    when it is safe: balanced graphics state, no transparency group or
+    optional content, and no clashing resource names."""
+    count = 0
+    for page in pdf.pages:
+        try:
+            ops = pikepdf.parse_content_stream(page)
+        except Exception:  # noqa: BLE001
+            continue
+        xobjects = page.obj.get("/Resources", Dictionary()).get("/XObject")
+        if xobjects is None:
+            continue
+        box = page_box(page)
+        page_area = max(1.0, (box[2] - box[0]) * (box[3] - box[1]))
+        new_ops: list = []
+        changed = False
+        for instr in ops:
+            if str(instr.operator) == "Do" and instr.operands:
+                form = xobjects.get(str(instr.operands[0]))
+                if (form is not None and form.get("/Subtype") == Name.Form and "/Group" not in form
+                        and "/OC" not in form and "/StructParents" not in form):
+                    try:
+                        bb = [float(v) for v in form.BBox]
+                        sub_ops = pikepdf.parse_content_stream(form)
+                    except Exception:  # noqa: BLE001
+                        sub_ops = None
+                    if sub_ops is not None:
+                        area = abs((bb[2] - bb[0]) * (bb[3] - bb[1]))
+                        has_text = any(str(o.operator) == "BT" for o in sub_ops)
+                        if area >= 0.5 * page_area and has_text and _balanced(sub_ops) and _merge_resources(page, form):
+                            matrix = [float(v) for v in form.get("/Matrix", [1, 0, 0, 1, 0, 0])]
+                            new_ops.append(pikepdf.ContentStreamInstruction([], Operator("q")))
+                            if matrix != [1, 0, 0, 1, 0, 0]:
+                                new_ops.append(pikepdf.ContentStreamInstruction(matrix, Operator("cm")))
+                            x0, y0, x1, y1 = min(bb[0], bb[2]), min(bb[1], bb[3]), max(bb[0], bb[2]), max(bb[1], bb[3])
+                            new_ops.append(pikepdf.ContentStreamInstruction([x0, y0, x1 - x0, y1 - y0], Operator("re")))
+                            new_ops.append(pikepdf.ContentStreamInstruction([], Operator("W")))
+                            new_ops.append(pikepdf.ContentStreamInstruction([], Operator("n")))
+                            new_ops.extend(sub_ops)
+                            new_ops.append(pikepdf.ContentStreamInstruction([], Operator("Q")))
+                            changed = True
+                            count += 1
+                            continue
+            new_ops.append(instr)
+        if changed:
+            page.obj.Contents = pdf.make_stream(pikepdf.unparse_content_stream(new_ops))
+    return count
+
+
+# ---------------------------------------------------------------------------
 # Building the tree
 # ---------------------------------------------------------------------------
 
@@ -485,6 +590,7 @@ def autotag(pdf: pikepdf.Pdf, *, force: bool = False) -> TagResult:
     """Tag an untagged document in place. Returns what was created."""
     if is_tagged(pdf) and not force:
         return TagResult(False, len(pdf.pages), 0, 0, 0, 0, 0, 0, [], None, "Already tagged")
+    inline_page_forms(pdf)
     fonts = FontCache()
     pages = list(pdf.pages)
     contents: list[PageContent] = []
@@ -558,7 +664,7 @@ def autotag(pdf: pikepdf.Pdf, *, force: bool = False) -> TagResult:
             next_key += 1
         elif "/StructParents" in page.obj:
             del page.obj["/StructParents"]
-    for annot, se, page_index in builder.objrefs:
+    for annot, se, _page in builder.objrefs:
         annot.StructParent = next_key
         nums.append(next_key)
         nums.append(se.obj)

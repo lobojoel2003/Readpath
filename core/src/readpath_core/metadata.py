@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 
 import pikepdf
-from pikepdf import Dictionary, Name
+from pikepdf import Dictionary
 
 # Info-dictionary keys Readpath uses to remember its own work. Custom Info keys
 # are allowed by PDF 1.x and do not affect PDF/A or PDF/UA conformance.

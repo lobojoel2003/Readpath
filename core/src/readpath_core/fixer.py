@@ -297,8 +297,9 @@ def md_lang_hint(path: Path) -> str | None:
         return None
 
 
-# Checks allowed to remain when declaring PDF/UA: advisory items only.
-_FINAL_OK = {"pdfua", "reading-order"}
+# Checks allowed to remain when declaring PDF/UA: advisory items only. An
+# unconfirmed reading order that Readpath guessed shows as a warning and blocks.
+_FINAL_OK = {"pdfua"}
 
 
 def finalize_pdf(pdf: pikepdf.Pdf) -> bool:

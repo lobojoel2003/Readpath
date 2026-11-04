@@ -734,7 +734,7 @@ def mark_headers_footers(layouts: list[PageLayout]) -> None:
             if key not in seen:
                 counts[key] += 1
                 seen.add(key)
-    for lay, b, key, where in candidates:
+    for _lay, b, key, where in candidates:
         repeated = n_pages >= 2 and counts[key] >= 2 and counts[key] >= 0.5 * n_pages
         if repeated or _PAGE_NUM_RE.match(b.text.strip()):
             b.role = "Artifact"

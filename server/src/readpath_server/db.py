@@ -96,9 +96,18 @@ class Database:
                     out[key] = None
         return out
 
-    def _execute(self, sql: str, params: tuple | list = ()) -> sqlite3.Cursor:
+    def _execute(self, sql: str, params: tuple | list = ()) -> None:
         with self._lock:
-            return self._conn.execute(sql, params)
+            self._conn.execute(sql, params)
+
+    def _one(self, sql: str, params: tuple | list = ()) -> sqlite3.Row | None:
+        # Fetch inside the lock: the connection is shared between threads
+        with self._lock:
+            return self._conn.execute(sql, params).fetchone()
+
+    def _all(self, sql: str, params: tuple | list = ()) -> list[sqlite3.Row]:
+        with self._lock:
+            return self._conn.execute(sql, params).fetchall()
 
     @staticmethod
     def _encode(values: dict[str, Any]) -> dict[str, Any]:
@@ -122,10 +131,10 @@ class Database:
         return self.get_scan(values["id"])  # type: ignore[return-value]
 
     def get_scan(self, scan_id: str) -> dict[str, Any] | None:
-        return self._row(self._execute("SELECT * FROM scans WHERE id = ?", (scan_id,)).fetchone())
+        return self._row(self._one("SELECT * FROM scans WHERE id = ?", (scan_id,)))
 
     def list_scans(self) -> list[dict[str, Any]]:
-        rows = self._execute("SELECT * FROM scans ORDER BY created_at DESC").fetchall()
+        rows = self._all("SELECT * FROM scans ORDER BY created_at DESC")
         return [self._row(r) for r in rows]  # type: ignore[misc]
 
     def update_scan(self, scan_id: str, **values: Any) -> None:
@@ -136,7 +145,7 @@ class Database:
         self._execute("DELETE FROM scans WHERE id = ?", (scan_id,))
 
     def scan_summary(self, scan_id: str) -> dict[str, Any]:
-        row = self._execute(
+        row = self._one(
             """SELECT COUNT(*) AS documents,
                       SUM(kind = 'pdf') AS pdfs,
                       SUM(kind = 'pdf' AND status = 'checked') AS checked,
@@ -149,7 +158,8 @@ class Database:
                       SUM(kind = 'pdf' AND status IN ('queued', 'downloading', 'checking', 'fixing')) AS pending
                FROM documents WHERE scan_id = ?""",
             (scan_id,),
-        ).fetchone()
+        )
+        assert row is not None
         out = {k: (row[k] or 0) for k in row.keys()}
         out["average_score"] = round(row["average_score"]) if row["average_score"] is not None else None
         return out
@@ -167,22 +177,22 @@ class Database:
         return self.get_document(values["id"])  # type: ignore[return-value]
 
     def get_document(self, doc_id: str) -> dict[str, Any] | None:
-        return self._row(self._execute("SELECT * FROM documents WHERE id = ?", (doc_id,)).fetchone())
+        return self._row(self._one("SELECT * FROM documents WHERE id = ?", (doc_id,)))
 
     def find_document(self, scan_id: str, url: str) -> dict[str, Any] | None:
-        return self._row(self._execute("SELECT * FROM documents WHERE scan_id = ? AND url = ?",
-                                       (scan_id, url)).fetchone())
+        return self._row(self._one("SELECT * FROM documents WHERE scan_id = ? AND url = ?",
+                                       (scan_id, url)))
 
     def list_documents(self, scan_id: str) -> list[dict[str, Any]]:
-        rows = self._execute(
+        rows = self._all(
             "SELECT * FROM documents WHERE scan_id = ? ORDER BY (kind != 'pdf'), filename COLLATE NOCASE",
             (scan_id,),
-        ).fetchall()
+        )
         return [self._row(r) for r in rows]  # type: ignore[misc]
 
     def documents_with_status(self, statuses: tuple[str, ...]) -> list[dict[str, Any]]:
         marks = ", ".join("?" for _ in statuses)
-        rows = self._execute(f"SELECT * FROM documents WHERE status IN ({marks})", statuses).fetchall()
+        rows = self._all(f"SELECT * FROM documents WHERE status IN ({marks})", statuses)
         return [self._row(r) for r in rows]  # type: ignore[misc]
 
     def update_document(self, doc_id: str, **values: Any) -> None:

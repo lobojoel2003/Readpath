@@ -19,6 +19,7 @@ from urllib.parse import urlsplit
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
+
 from readpath_core import __version__ as core_version
 from readpath_core import ocr as core_ocr
 from readpath_core import render, verapdf, vision

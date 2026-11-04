@@ -25,10 +25,10 @@ from urllib.parse import urlsplit
 
 import httpx
 import pikepdf
-from readpath_core import autofix_file, finalize_pdf, run_checks
+
+from readpath_core import autofix_file, finalize_pdf, run_checks, verapdf
 from readpath_core import metadata as core_md
 from readpath_core import ocr as core_ocr
-from readpath_core import verapdf
 from readpath_core.checks import ProblemOpening
 from readpath_core.review import Review
 

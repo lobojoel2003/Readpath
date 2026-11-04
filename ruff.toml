@@ -1,0 +1,15 @@
+# Shared lint settings for core/ and server/ (run: ruff check .)
+line-length = 120
+target-version = "py311"
+extend-exclude = ["web"]
+
+[lint]
+select = ["F", "E9", "B", "I001"]
+ignore = [
+  "B008",  # FastAPI's File()/Form() defaults in signatures
+  "B904",  # explicit exception chaining is applied where it matters
+  "B905",  # zip() without strict= is intended
+]
+
+[lint.isort]
+known-first-party = ["readpath_core", "readpath_server", "samples"]

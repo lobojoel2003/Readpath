@@ -22,8 +22,8 @@ from functools import lru_cache
 from pathlib import Path
 
 import pikepdf
-from pikepdf import Array, Dictionary, Name
 from pdfminer.fontmetrics import FONT_METRICS
+from pikepdf import Array, Dictionary, Name
 
 from .fonts import _BASE14_ALIASES, _STD, _WIN, FontInfo, glyph_to_unicode
 

@@ -2,6 +2,8 @@ name: Release
 
 # Push a version tag to publish a release:
 #   git tag -a v0.1.0 -m "Readpath 0.1.0" && git push origin v0.1.0
+# CI runs first (including the packaging job, which checks the tag matches the
+# package versions); then the image is pushed to GHCR and the release created.
 on:
   push:
     tags: ["v*.*.*"]
@@ -15,60 +17,8 @@ concurrency:
 
 jobs:
   ci:
-    name: Tests
+    name: CI
     uses: ./.github/workflows/ci.yml
-
-  build:
-    name: Build packages
-    needs: ci
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - name: Tag matches package versions
-        run: python scripts/check_version.py "$GITHUB_REF_NAME"
-      - name: Python packages (sdist and wheel)
-        run: |
-          pip install build
-          python -m build core -o dist
-          python -m build server -o dist
-      - uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-      - name: Web app bundle
-        run: |
-          cd web
-          npm ci
-          npm run build
-          tar -czf "../dist/readpath-web-${GITHUB_REF_NAME#v}.tar.gz" -C dist .
-      - name: Checksums
-        run: cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
-      - name: Release notes
-        run: |
-          python scripts/release_notes.py "$GITHUB_REF_NAME" > release-notes.md
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/readpath:${GITHUB_REF_NAME#v}"
-          {
-            echo
-            echo "### Install"
-            echo
-            echo '```bash'
-            echo "docker run -d -p 8000:8000 -v readpath-data:/data $image"
-            echo '```'
-            echo
-            echo "Then open http://localhost:8000. Python packages, the web bundle and checksums are attached below."
-          } >> release-notes.md
-          cat release-notes.md
-      - uses: actions/upload-artifact@v4
-        with:
-          name: release-files
-          path: |
-            dist/
-            release-notes.md
-          if-no-files-found: error
 
   image:
     name: Publish Docker image
@@ -78,15 +28,15 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v5
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/readpath
           tags: |
@@ -97,7 +47,7 @@ jobs:
             org.opencontainers.image.title=Readpath
             org.opencontainers.image.description=Check and fix the accessibility of every PDF on a website
             org.opencontainers.image.licenses=AGPL-3.0-or-later AND Apache-2.0
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           push: true
@@ -108,18 +58,18 @@ jobs:
 
   release:
     name: GitHub Release
-    needs: [build, image]
+    needs: [ci, image]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: release-files
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           name: Readpath ${{ github.ref_name }}
           body_path: release-notes.md
           files: dist/*
           fail_on_unmatched_files: true
-          make_latest: true
+          make_latest: "true"

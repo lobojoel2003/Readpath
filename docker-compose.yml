@@ -1,0 +1,19 @@
+# Run Readpath:   docker compose up -d     then open http://localhost:8000
+# With draft alt text from a local vision model, see docker-compose.vision.yml.
+services:
+  readpath:
+    build: .
+    image: readpath:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - readpath-data:/data
+    environment:
+      READPATH_DEFAULT_LANG: en-US   # used when the language can't be detected
+      READPATH_WORKERS: "2"          # documents checked/fixed at the same time
+      # READPATH_PASSWORD: change-me # require a shared password (recommended on a public server)
+      # READPATH_VERAPDF_ON_SCAN: "true"  # also run veraPDF on every crawled PDF (slower)
+    restart: unless-stopped
+
+volumes:
+  readpath-data:

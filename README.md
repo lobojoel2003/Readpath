@@ -12,6 +12,10 @@ remediation vendors.
 | State and local governments serving 50,000+ people | **April 26, 2027** |
 | Smaller governments and special districts | **April 26, 2028** |
 
+| Every PDF on the site, scored | Guided review: reading order | Done: download the fixed file |
+|---|---|---|
+| ![Scan results with scores before and after fixing](docs/screenshots/scan.png) | ![Page image with numbered blocks next to a reorderable list](docs/screenshots/reading-order.png) | ![Score of 100 with a download button](docs/screenshots/finish.png) |
+
 ## What it does
 
 1. **Crawl** your website (or upload PDFs) and list every document it links to,
@@ -133,8 +137,9 @@ Current limitations:
 - **Fonts that aren't embedded**, other than the standard Helvetica/Arial,
   Times and Courier, need the source file (re-export with "embed fonts" on).
   Readpath flags them as a minor PDF/UA issue.
-- **Charts drawn as vector graphics** (not pictures) are marked as decoration.
-  Describe them in the surrounding text, or re-export them as images.
+- **Charts drawn as vector graphics** are detected as images when the shapes
+  form a clear cluster; thin decorations, borders and shaded text boxes are
+  marked as decoration. Check the reading-order step for anything missed.
 - **Complex layouts** (forms, nested tables, magazine spreads) may need more
   reading-order fixes in the review.
 - **Form fields without labels** are flagged but must be labelled in an editor such as Acrobat.
@@ -167,6 +172,22 @@ person (image descriptions) or, for unusual fonts, the source file.
 veraPDF runs as a separate program; the Docker image fetches it from Maven
 Central. OCRmyPDF, Tesseract and the Liberation fonts are installed from Debian
 packages.
+
+## How it was tested
+
+- `core/tests` (22 tests): font decoding, layout analysis, tagging, checks,
+  fixes and every review edit, on generated PDFs. Tagging must leave every page
+  pixel-identical.
+- `server/tests` (141 tests): the HTTP API end to end (upload, fix, every
+  review step, conflicts, CSV, password, SPA hosting), a crawl of a local test
+  site, and the crawler against a simulated municipal site (robots.txt,
+  sitemaps, CivicPlus-style links, redirects, limits).
+- PDFs from ReportLab, LibreOffice (tagged and untagged), Chrome and a
+  print-driver-style file were tagged automatically and pass veraPDF's PDF/UA-1
+  checks, apart from image descriptions that need a person.
+- A browser test drives the real UI against the real server: an untagged
+  3-page file goes from 34 to 77 with *Fix automatically*, and to 100 after
+  the guided review; the downloaded file passes veraPDF PDF/UA-1.
 
 ## Development
 

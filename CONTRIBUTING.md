@@ -116,6 +116,10 @@ and what you expected. If the file can't be shared, the output of
 git tag -a v0.2.0 -m "Readpath 0.2.0" && git push origin v0.2.0
 ```
 
+   Or, on GitHub, open **Releases → Draft a new release**, type the new tag
+   (`v0.2.0`), pick the commit to release, and publish. Creating the tag starts
+   the same workflow, which then fills in the release notes and files.
+
 The release workflow reruns CI, publishes the Docker image to
 `ghcr.io/lobojoel2003/readpath`, builds the Python packages and web bundle,
 and creates the GitHub Release with the changelog notes.

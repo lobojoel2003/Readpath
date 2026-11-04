@@ -574,10 +574,9 @@ def run_checks(pdf: pikepdf.Pdf, *, filename: str | None = None, ocr_available: 
             "The file declares PDF/UA conformance.", "", None))
     else:
         checks.append(Check(
-            "pdfua", "Marked as PDF/UA", "manual", "minor", [], ["5"],
-            "The file doesn't declare PDF/UA conformance yet.",
-            "Readpath adds the PDF/UA mark when you finish the guided review and nothing automatic fails.",
-            "guided"))
+            "pdfua", "Marked as PDF/UA", "not_applicable", "minor", [], ["5"],
+            "Not marked yet. Readpath adds the PDF/UA mark when you finish the guided review and every "
+            "automatic check passes.", "", None))
 
     score = compute_score(checks)
     grade = compute_grade(checks)

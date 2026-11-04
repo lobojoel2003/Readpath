@@ -164,6 +164,13 @@ def browser_style(path: str | Path) -> Path:
         c.drawString(92, y, item)
         y -= 16
     y -= 20
+    # A small drawing made of shapes (like an SVG or a vector chart)
+    c.setFillColorRGB(0.1, 0.5, 0.5)
+    c.rect(72, y - 80, 150, 80, stroke=0, fill=1)
+    c.setFillColorRGB(1, 0.6, 0)
+    c.circle(110, y - 40, 25, stroke=0, fill=1)
+    c.setFillColorRGB(0, 0, 0)
+    y -= 110
     rows = [["Branch", "Opens", "Closes"], ["Main", "9:00", "20:00"], ["North", "10:00", "18:00"],
             ["South", "10:00", "17:00"]]
     for r, row in enumerate(rows):

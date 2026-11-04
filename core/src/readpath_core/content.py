@@ -113,6 +113,7 @@ class Item:
     form_text: bool = False  # form XObject that draws text
     form_image: bool = False  # form XObject that draws images
     segments: list[Segment] = field(default_factory=list)
+    curved: bool = False  # path uses Bezier curves (circles, rounded shapes)
     name: str = ""  # XObject resource name for Do
 
     @property
@@ -139,6 +140,18 @@ class McInfo:
     bbox: BBox | None = None
     text: str = ""
     kinds: set[str] = field(default_factory=set)
+    last: tuple[BBox, float] | None = None  # last text run, to decide on word spaces
+
+    def add_text(self, text: str, bbox: BBox, size: float) -> None:
+        if self.text and self.last is not None and not self.text.endswith((" ", "\n")) and not text.startswith(" "):
+            prev, prev_size = self.last
+            h = max(size, prev_size, 1.0)
+            new_line = abs(bbox[1] - prev[1]) > 0.5 * h
+            gap = bbox[0] - prev[2]
+            if new_line or gap > 0.12 * h:
+                self.text += " "
+        self.text += text
+        self.last = (bbox, size)
 
 
 @dataclass
@@ -185,7 +198,7 @@ class _Walker:
         self.has_marked = False
 
     # Record content inside a marked-content sequence with an MCID.
-    def _record(self, marks: list[_Mark], kind: str, bbox: BBox, text: str) -> None:
+    def _record(self, marks: list[_Mark], kind: str, bbox: BBox, text: str, size: float = 0.0) -> None:
         for mark in reversed(marks):
             if mark.mcid is not None:
                 if mark.form_key is None:
@@ -194,7 +207,7 @@ class _Walker:
                     info = self.form_mcids.setdefault((mark.form_key, mark.mcid), McInfo())
                 info.bbox = union(info.bbox, bbox)
                 if text:
-                    info.text += text
+                    info.add_text(text, bbox, size)
                 info.kinds.add(kind)
                 return
 
@@ -217,6 +230,7 @@ class _Walker:
         tm: Matrix = IDENTITY
         tlm: Matrix = IDENTITY
         path_start: int | None = None
+        path_curved = False
         path_points: list[tuple[float, float]] = []
         path_segments: list[tuple] = []
         cur: tuple[float, float] | None = None
@@ -241,7 +255,7 @@ class _Walker:
             item.in_marked = bool(local_marks)
             if top_level:
                 items.append(item)
-            self._record(local_marks, item.kind, item.bbox, item.text)
+            self._record(local_marks, item.kind, item.bbox, item.text, item.size)
             summary["bbox"] = union(summary["bbox"], item.bbox)
 
         def show_text(index: int, operand_list) -> None:
@@ -289,7 +303,7 @@ class _Walker:
             add_item(Item("text", index, index, box, text, eff, font.base_name, font.bold, font.italic, invisible))
 
         def finish_path(index: int, op: str) -> None:
-            nonlocal path_start, path_points, path_segments
+            nonlocal path_start, path_points, path_segments, path_curved
             if path_start is None:
                 path_start = index
             if path_points:
@@ -313,13 +327,17 @@ class _Walker:
                             segs.append(Segment("rect", *bx, stroked, filled))
                     else:
                         _, p0, p1 = seg
+                        if abs(p0[0] - p1[0]) < 0.01 and abs(p0[1] - p1[1]) < 0.01:
+                            continue  # zero-length closing segment
                         segs.append(Segment("line", p0[0], p0[1], p1[0], p1[1], stroked, filled))
             item = Item("path", path_start, index, box)
             item.segments = segs
+            item.curved = path_curved
             add_item(item)
             path_start = None
             path_points = []
             path_segments = []
+            path_curved = False
 
         for index, instr in enumerate(ops):
             try:
@@ -353,6 +371,7 @@ class _Walker:
                         path_points.append(pt)
                         cur = pt
                     elif op in ("c", "v", "y") and len(operands) >= 4:
+                        path_curved = True
                         vals = [_num(v) for v in operands]
                         pts = [apply(gs.ctm, vals[k], vals[k + 1]) for k in range(0, len(vals) - 1, 2)]
                         path_points.extend(pts)

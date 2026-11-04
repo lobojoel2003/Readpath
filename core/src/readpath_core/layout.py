@@ -398,8 +398,7 @@ def attach_vector_bullets(lines: list[Line], paths: list[Item]) -> set[int]:
 
     Returns the ids of path items used as bullets."""
     used: set[int] = set()
-    candidates = [p for p in paths if 1.2 <= p.width <= 9 and 1.2 <= p.height <= 9
-                  and any(s.filled for s in p.segments) | (not p.segments)]
+    candidates = [p for p in paths if 1.2 <= p.width <= 9 and 1.2 <= p.height <= 9]
     if not candidates:
         return used
     for ln in lines:
@@ -615,6 +614,63 @@ def _merge_figures(images: list[Item], page: int) -> list[Block]:
     return blocks
 
 
+def find_vector_figures(paths: list[Item], text_items: list[Item], tables: list[Block], box: BBox,
+                        page: int) -> list[Block]:
+    """Pictures and charts drawn with vector shapes instead of images.
+
+    A cluster of shapes becomes a figure when it is reasonably large, has at
+    least three shapes (or curves), and is not mostly text (a shaded box
+    behind a paragraph is not a picture). Text inside, such as chart labels,
+    belongs to the figure."""
+    page_area = _area(box) or 1.0
+    cands = []
+    for p in paths:
+        w, h = p.width, p.height
+        if w < 3 or h < 3 or w * h < 100 or w * h > 0.6 * page_area:
+            continue
+        if any(_inside(p, t.bbox, 1) for t in tables):
+            continue
+        cands.append(p)
+    if not cands:
+        return []
+    parent = list(range(len(cands)))
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    order = sorted(range(len(cands)), key=lambda i: cands[i].bbox[0])
+    for a_pos, i in enumerate(order):
+        a = cands[i].bbox
+        for j in order[a_pos + 1:]:
+            b = cands[j].bbox
+            if b[0] > a[2] + 6:
+                break
+            if _overlap(a[1], a[3], b[1], b[3]) > -6:
+                parent[find(i)] = find(j)
+    groups: dict[int, list[Item]] = defaultdict(list)
+    for i, p in enumerate(cands):
+        groups[find(i)].append(p)
+    figures = []
+    for group in groups.values():
+        bbox = None
+        for p in group:
+            bbox = union(bbox, p.bbox)
+        assert bbox is not None
+        area = _area(bbox)
+        curves = any(p.curved for p in group)
+        if area < 2500 or (len(group) < 3 and not curves):
+            continue
+        inside = [t for t in text_items if _inside(t, bbox, 1)]
+        if sum(_area(t.bbox) for t in inside) > 0.25 * area:
+            continue
+        items = sorted(group + inside, key=lambda it: it.start)
+        figures.append(Block("figure", page, _clip(bbox, box), items, role="Figure"))
+    return figures
+
+
 def _clip(b: BBox, box: BBox) -> BBox:
     return (max(b[0], box[0]), max(b[1], box[1]), min(b[2], box[2]), min(b[3], box[3]))
 
@@ -679,6 +735,12 @@ def analyze_layout(page_index: int, content: PageContent, box: BBox) -> PageLayo
         in_table.update(id(it) for it in cell_items)
         table_blocks.append(Block("table", page_index, grid.bbox, cell_items, role="Table", grid=grid))
     remaining = [it for it in text_items if id(it) not in in_table]
+    path_items = [a.items[0] for a in artifacts if a.items and a.items[0].kind == "path" and len(a.items) == 1]
+    vector_figures = find_vector_figures(path_items, remaining, table_blocks, box, page_index)
+    if vector_figures:
+        used_ids = {id(it) for f in vector_figures for it in f.items}
+        artifacts = [a for a in artifacts if not (a.items and id(a.items[0]) in used_ids)]
+        remaining = [it for it in remaining if id(it) not in used_ids]
     lines = build_lines(remaining)
     for grid in find_text_tables(lines, page_index):
         cell_items = [it for c in grid.cells for it in c.items]
@@ -693,7 +755,7 @@ def analyze_layout(page_index: int, content: PageContent, box: BBox) -> PageLayo
     figures = _merge_figures(images, page_index)
     for f in figures:
         f.bbox = _clip(f.bbox, box)
-    blocks = paragraphs + form_blocks + table_blocks + figures
+    blocks = paragraphs + form_blocks + table_blocks + figures + vector_figures
     return PageLayout(page_index, box, blocks, artifacts, absorb)
 
 

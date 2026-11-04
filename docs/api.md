@@ -242,5 +242,8 @@ Block `type` values accepted by the block endpoint: `P`, `H1`–`H6`, `Caption`,
 and `Artifact` (removes the block from the reading order, for page headers,
 footers and decoration).
 
+Marking an image decorative (`decorative: true`) takes it out of the tags, so
+it no longer appears in the `figures` list returned afterwards.
+
 Block, figure and table ids are only valid for the revision they came from.
 Every mutation returns fresh data with new ids; use those.

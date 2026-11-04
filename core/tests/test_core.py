@@ -260,8 +260,8 @@ def test_vector_bullets_and_unruled_table(tmp_path):
         result = autotag(pdf)
         tree = read_tree(pdf)
     types = [b.std for b in blocks_in_order(tree)]
-    assert types == ["H1", "L", "Table"], types
-    assert result.lists == 1 and result.tables == 1
+    assert types == ["H1", "L", "Figure", "Table"], types  # the drawing is a figure
+    assert result.lists == 1 and result.tables == 1 and result.figures == 1
     lbls = [e for e in tree.elements if e.std == "Lbl"]
     assert len(lbls) == 3  # the drawn circles are the list labels
     rows = [e for e in tree.elements if e.std == "TR"]

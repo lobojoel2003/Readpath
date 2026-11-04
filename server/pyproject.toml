@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=69"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,10 +7,12 @@ name = "readpath-server"
 version = "0.1.0"
 description = "Readpath web app: crawl a website, list and score every PDF, fix what is safe, and guide people through the rest."
 license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Readpath contributors" }]
 dependencies = [
-  "readpath-core",
+  "readpath-core>=0.1.0,<0.2",
   "fastapi>=0.110",
   "uvicorn>=0.29",
   "httpx>=0.27",

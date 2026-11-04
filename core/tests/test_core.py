@@ -129,12 +129,35 @@ def test_autotag_structure(council):
     assert {"TH", "TD", "TR", "LI", "Lbl", "LBody", "Link"} <= std
 
 
-def test_autofix_keeps_appearance(council, fixed):
-    a, b = pdfium.PdfDocument(str(council)), pdfium.PdfDocument(str(fixed))
+def _changed_fraction(a_path, b_path) -> list[float]:
+    a, b = pdfium.PdfDocument(str(a_path)), pdfium.PdfDocument(str(b_path))
+    out = []
     for i in range(len(a)):
-        ia = a[i].render(scale=1).to_pil().convert("RGB")
-        ib = b[i].render(scale=1).to_pil().convert("RGB")
-        assert ImageChops.difference(ia, ib).getbbox() is None, f"page {i + 1} changed"
+        ia = a[i].render(scale=2).to_pil().convert("L")
+        ib = b[i].render(scale=2).to_pil().convert("L")
+        hist = ImageChops.difference(ia, ib).histogram()
+        out.append(sum(hist[64:]) / (ia.size[0] * ia.size[1]))
+    return out
+
+
+def test_tagging_keeps_appearance(tmp_path, council):
+    out = tmp_path / "tagged-only.pdf"
+    autofix_file(council, out, ocr=False, embed_fonts=False)
+    assert _changed_fraction(council, out) == [0.0, 0.0, 0.0]
+
+
+def test_autofix_keeps_appearance(council, fixed):
+    # Embedded substitute fonts have the same widths; only glyph outlines differ slightly
+    assert max(_changed_fraction(council, fixed)) < 0.01
+
+
+def test_embeds_standard_fonts(council, fixed):
+    from readpath_core import embed_fonts
+
+    if not embed_fonts.available():
+        pytest.skip("Liberation fonts not installed")
+    assert check(check_file(council), "fonts-embedded").fix == "auto"
+    assert check(check_file(fixed), "fonts-embedded").status == "pass"
 
 
 def test_autofix_improves_score(council, fixed):
@@ -191,7 +214,7 @@ def test_review_flow(tmp_path, fixed):
         pdf.save(tmp_path / "reviewed.pdf")
     report = check_file(tmp_path / "reviewed.pdf")
     failing = {c.id for c in report.checks if c.failing}
-    assert failing <= {"fonts-embedded"}, failing
+    assert not failing, failing
     assert report.grade == "ready"
     assert report.score >= 95
 
@@ -261,11 +284,7 @@ def test_page_drawn_as_form_xobject(tmp_path, council):
     with pikepdf.open(out) as pdf:
         types = [b.std for b in blocks_in_order(read_tree(pdf))]
     assert types[:5] == ["H1", "H2", "P", "H2", "L"]
-    a, b = pdfium.PdfDocument(str(src)), pdfium.PdfDocument(str(out))
-    for i in range(len(a)):
-        diff = ImageChops.difference(a[i].render(scale=1).to_pil().convert("RGB"),
-                                     b[i].render(scale=1).to_pil().convert("RGB"))
-        assert diff.getbbox() is None
+    assert max(_changed_fraction(src, out)) < 0.01
 
 
 def test_rotated_page_boxes(tmp_path, council):

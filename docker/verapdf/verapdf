@@ -1,0 +1,3 @@
+#!/bin/sh
+# Launcher for the veraPDF command-line validator installed from Maven Central.
+exec java -Xss8m -Xmx1g -cp "/opt/verapdf/lib/*" org.verapdf.apps.GreenfieldCliWrapper "$@"

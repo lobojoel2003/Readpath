@@ -1,0 +1,30 @@
+# Adds a local vision model (Ollama) that drafts alt text for images.
+# Nothing leaves your server.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.vision.yml up -d
+#   docker compose exec ollama ollama pull qwen2.5vl:3b
+#
+# A 3-billion-parameter model runs on a CPU-only machine with ~8 GB of RAM
+# (slowly: expect 20-60 s per image). Add a GPU for faster drafts.
+services:
+  readpath:
+    environment:
+      READPATH_VISION_URL: http://ollama:11434
+      READPATH_VISION_MODEL: qwen2.5vl:3b
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama:latest  # pin to a version you have tested
+    volumes:
+      - ollama-models:/root/.ollama
+    restart: unless-stopped
+    # Uncomment to use an NVIDIA GPU:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - capabilities: [gpu]
+
+volumes:
+  ollama-models:

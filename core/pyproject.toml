@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "readpath-core"
+version = "0.1.0"
+description = "Check, score and fix PDF accessibility (WCAG 2.1 / PDF/UA-1): auto-tagging, safe fixes and a guided-review API."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.11"
+authors = [{ name = "Readpath contributors" }]
+keywords = ["accessibility", "a11y", "pdf", "pdf-ua", "wcag", "ada", "section-508", "remediation"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Information Technology",
+  "Programming Language :: Python :: 3",
+  "Topic :: Text Processing :: Markup",
+]
+dependencies = [
+  "pikepdf>=9.0",
+  "pdfminer.six>=20231228",
+  "pdfplumber>=0.11",
+  "pypdfium2>=4.25",
+  "Pillow>=10.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "reportlab>=4"]
+
+[project.scripts]
+readpath = "readpath_core.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "tests"]

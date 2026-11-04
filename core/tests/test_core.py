@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
-import io
 
 import pikepdf
 import pypdfium2 as pdfium
 import pytest
 from PIL import ImageChops
 
-from readpath_core import autofix_file, check_file, metadata as md
+import samples
+from readpath_core import autofix_file, check_file, cli
+from readpath_core import metadata as md
 from readpath_core.checks import ProblemOpening
 from readpath_core.content import analyze_page, to_view_fraction
 from readpath_core.fonts import CMap
@@ -15,8 +16,6 @@ from readpath_core.layout import list_start
 from readpath_core.review import Review, ReviewError
 from readpath_core.structure import blocks_in_order, read_tree
 from readpath_core.tagger import autotag, is_tagged
-from readpath_core import cli
-import samples
 
 
 @pytest.fixture()

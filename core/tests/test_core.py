@@ -252,3 +252,29 @@ def test_two_column_reading_order(council):
         texts = [b["text"] for b in r.page_blocks(2)]
     assert texts[0].startswith("Public Comment")
     assert texts[1].startswith("First column") and texts[2].startswith("Second column")
+
+
+def test_page_drawn_as_form_xobject(tmp_path, council):
+    src = samples.form_page(council, tmp_path / "form.pdf")
+    out = tmp_path / "form-fixed.pdf"
+    autofix_file(src, out, ocr=False)
+    with pikepdf.open(out) as pdf:
+        types = [b.std for b in blocks_in_order(read_tree(pdf))]
+    assert types[:5] == ["H1", "H2", "P", "H2", "L"]
+    a, b = pdfium.PdfDocument(str(src)), pdfium.PdfDocument(str(out))
+    for i in range(len(a)):
+        diff = ImageChops.difference(a[i].render(scale=1).to_pil().convert("RGB"),
+                                     b[i].render(scale=1).to_pil().convert("RGB"))
+        assert diff.getbbox() is None
+
+
+def test_rotated_page_boxes(tmp_path, council):
+    with pikepdf.open(council) as pdf:
+        pdf.pages[0].obj.Rotate = 90
+        autotag(pdf)
+        r = Review(pdf)
+        assert r.page_sizes()[0]["width"] == 792
+        title = r.page_blocks(0)[0]
+    left, top, right, bottom = title["bbox"]
+    # The title runs down the right-hand edge of a page turned clockwise
+    assert left > 0.85 and bottom - top > right - left

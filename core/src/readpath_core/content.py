@@ -322,8 +322,11 @@ class _Walker:
             path_segments = []
 
         for index, instr in enumerate(ops):
-            op = str(instr.operator)
-            operands = instr.operands
+            try:
+                op = str(instr.operator)
+                operands = instr.operands
+            except Exception:  # noqa: BLE001 - garbage operator bytes
+                continue
             try:
                 if op == "INLINE IMAGE":
                     box = transform_bbox(gs.ctm, (0, 0, 1, 1))

@@ -126,12 +126,28 @@ def council_minutes(path: str | Path, *, title_metadata: str | None = None) -> P
 
 
 def scanned_page(path: str | Path) -> Path:
-    """A page that is only a picture of text (no real text)."""
+    """A page that is only a picture of text (no real text), like a scan.
+
+    The picture holds readable words so OCR has something to recognize."""
+    from PIL import ImageFont
+
     path = Path(path)
-    img = Image.new("L", (850, 1100), 255)
+    img = Image.new("L", (1275, 1650), 255)  # 150 dpi letter page
     d = ImageDraw.Draw(img)
-    for i in range(30):
-        d.rectangle([80, 100 + i * 30, 700, 112 + i * 30], fill=40)
+    try:
+        title_font = ImageFont.load_default(size=44)
+        body_font = ImageFont.load_default(size=30)
+    except TypeError:  # Pillow < 10.1
+        title_font = body_font = ImageFont.load_default()
+    d.text((120, 120), "Notice of Public Meeting", fill=0, font=title_font)
+    lines = [
+        "The Library Board will meet on Tuesday at",
+        "six thirty in the evening at City Hall.",
+        "Residents are welcome to attend and speak",
+        "during the public comment period.",
+    ]
+    for i, line in enumerate(lines):
+        d.text((120, 240 + i * 52), line, fill=0, font=body_font)
     buf = io.BytesIO()
     img.save(buf, "PNG")
     buf.seek(0)
@@ -141,13 +157,6 @@ def scanned_page(path: str | Path) -> Path:
     c.save()
     return path
 
-
-if __name__ == "__main__":  # pragma: no cover
-    import sys
-
-    out = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
-    council_minutes(out / "council.pdf")
-    scanned_page(out / "scanned.pdf")
 
 
 def browser_style(path: str | Path) -> Path:
@@ -195,3 +204,12 @@ def form_page(src: str | Path, path: str | Path) -> Path:
             page.obj.Contents = pdf.make_stream(b"q " + bytes(name) + b" Do Q")
         pdf.save(path)
     return path
+
+
+if __name__ == "__main__":  # pragma: no cover
+    import sys
+
+    out = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
+    council_minutes(out / "council.pdf")
+    scanned_page(out / "scanned.pdf")
+    browser_style(out / "browser.pdf")

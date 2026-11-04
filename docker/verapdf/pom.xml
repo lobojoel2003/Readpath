@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Fetches the veraPDF command-line validator and its dependencies from Maven
-  Central. Used by the Docker build:  mvn -q dependency:copy-dependencies
+  Central. Used by the Docker build:
+    mvn org.apache.maven.plugins:maven-dependency-plugin:3.8.1:copy-dependencies
   The jars land in target/dependency and are run with:
     java -cp 'lib/*' org.verapdf.apps.GreenfieldCliWrapper
 -->

@@ -16,7 +16,8 @@ RUN npm run build
 FROM maven:3.9-eclipse-temurin-21 AS verapdf
 WORKDIR /build
 COPY docker/verapdf/pom.xml .
-RUN mvn -q -B dependency:copy-dependencies -DoutputDirectory=/opt/verapdf/lib
+RUN mvn -q -B org.apache.maven.plugins:maven-dependency-plugin:3.8.1:copy-dependencies \
+      -DoutputDirectory=/opt/verapdf/lib -DincludeScope=runtime
 
 # ---- 3. Runtime -------------------------------------------------------------------
 FROM python:3.12-slim-bookworm
